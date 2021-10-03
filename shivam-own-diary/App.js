@@ -1,84 +1,148 @@
-import React, { useEffect, createContext, useState, useMemo } from 'react';
+import React, {
+  useReducer,
+  createContext,
+  useMemo,
+  useEffect,
+  useState,
+} from 'react';
 import {
-  AsyncStorage,
   Text,
   View,
   StyleSheet,
-  PermissionsAndroid,
+  Button,
+  AsyncStorage,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import Constants from 'expo-constants';
 import { NavigationContainer } from '@react-navigation/native';
-import Theme from './components/Theme';
-import LottieView from 'lottie-react-native';
-import { createDrawerNavigator } from '@react-navigation/drawer';
-import * as RNFS from 'react-native-fs'
-const Drawer = createDrawerNavigator();
-
-import HomeScreen from './components/HomeScreen';
+import RootStackNavigator from './components/1RootStack';
+import MainTabScreen from './Screens/TabBarNavigator';
+import NewsModal from './Screens/NewsModal'
+import LottieView from 'lottie-react-native'
 const AuthContext = createContext();
 
-const comp = () => {
-  return (
-    <View>
-      <Text>Hello </Text>
-    </View>
-  );
-};
+// AsyncStorage.setItem('value',"Power of Fear").then(()=>{
+//   alert('saved')
+// })
+
+// AsyncStorage.getItem('value').then((data)=>{
+//   alert(data)
+// })
+
+// AsyncStorage.removeItem('value').then(()=>{
+//   alert("deleted")
+// })
 
 export default function App() {
   const [loading, setLoading] = useState(true);
-  const [storagePermission, setStoragePermission] = useState(false);
 
-  const PermisssionCheck = () => {
-    PermissionsAndroid.check(
-      PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
-    ).then((isPermitted) => {
-      if (isPermitted) {
-        setStoragePermission(true);
-      } else {
-        PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-          {
-            title: 'Storage Permission',
-            message: 'Allow Shivam Diary To Give Storage Permission',
-            buttonNeutral: 'Ask me later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
-        ).then((data) => {
-          setStoragePermission(true);
-        });
-      }
-    });
+  const initialState = {
+    password: null,
+    userEmail: null,
+    isSignedUser: false,
+    isLoading: true,
   };
+
+  const loginReducer = (state, action) => {
+    switch (action.type) {
+      case 'CHECK_LOGIN':
+        return {
+          ...state,
+          isSignedUser: true,
+          isLoading: false,
+        };
+
+      case 'REGISTER':
+        return {
+          isSignedUser: false,
+
+          password: action.payload.password,
+          userEmail: action.payload.email,
+          isLoading: false,
+        };
+
+      case 'FALSE_LOADING':
+        return {
+          password: null,
+          userEmail: null,
+          isSignedUser: false,
+          isLoading: false,
+        };
+      case 'LOGIN':
+        return {
+          isSignedUser: true,
+
+          password: action.payload.password,
+          userEmail: action.payload.email,
+          isLoading: false,
+        };
+
+      case 'LOGOUT':
+        return {
+          isSignedUser: false,
+
+          password: false,
+          userEmail: false,
+          isLoading: false,
+        };
+    }
+  };
+
+  const [state, dispatch] = useReducer(loginReducer, initialState);
 
   const authContext = useMemo(
     () => ({
-      setThemeColorFunc: async (color) => {
-        await AsyncStorage.setItem('themeColor', color);
-      },
+      signIn: async (email, password) => {
+        try {
+          const checkEmail = await AsyncStorage.getItem('email');
+          const checkPassword = await AsyncStorage.getItem('password');
 
-      setTextColorFunc: async (color) => {
-        await AsyncStorage.setItem('textColor', color);
-      },
+          if (checkEmail == null) {
+            Alert.alert('error', 'Please SignUp First', [{ text: 'OK' }]);
+          }
 
-      saveDiaryIntoDevice: async (title, desc) => {
-       
-        if(!storagePermission){
-          PermisssionCheck()
+          if (checkEmail === email && checkPassword === password) {
+            dispatch({ type: 'CHECK_LOGIN' });
+          } else {
+            Alert.alert('error', 'invalid credentials', [{ text: 'OK' }]);
+          }
+        } catch (e) {
+          Alert.alert('Error', 'Some error occured', [{ text: 'ok' }]);
         }
       },
-      getTextColor: () => {
-        AsyncStorage.getItem('textColor').then((color) => {
-          alert(color);
-          return color;
-        });
+      signUp: async (email, password) => {
+        try {
+          const userEmail = await AsyncStorage.getItem('email');
+
+          if (
+            userEmail === null ||
+            userEmail === undefined ||
+            userEmail === ''
+          ) {
+            await AsyncStorage.setItem('email', email);
+            await AsyncStorage.setItem('password', password);
+            dispatch({
+              type: 'REGISTER',
+              payload: { password: password, userEmail: email },
+            });
+          } else {
+            Alert.alert(
+              'Error',
+              'An existing account find please sign In by clicking on sign In button',
+              [{ text: 'Okay' }]
+            );
+          }
+        } catch (e) {
+          alert('Some error occured');
+        }
       },
-      getThemeColor: () => {
-        AsyncStorage.getItem('themeColor').then((color) => {
-          alert(color);
-          return color;
-        });
+
+      logOut: async () => {
+        alert('Log out button pressed');
+        await AsyncStorage.removeItem('email');
+        await AsyncStorage.removeItem('password');
+
+        dispatch({ type: 'FALSE_LOADING' });
       },
     }),
     []
@@ -86,42 +150,39 @@ export default function App() {
 
   useEffect(() => {
     setTimeout(async () => {
-      try {
-        let textColor = await AsyncStorage.getItem('textColor');
-        let themeColor = await AsyncStorage.getItem('themeColor');
-        alert(`${textColor} ${themeColor}`);
+      const email = await AsyncStorage.getItem('email');
+      const password = await AsyncStorage.getItem('password');
 
-        if (textColor === null || themeColor === null) {
-          await AsyncStorage.setItem('textColor', '#000');
-          await AsyncStorage.setItem('themeColor', '#E8893C');
-        }
-        setLoading(false);
-      } catch (err) {}
-      setLoading(false);
-    }, 1000);
+      alert(`${email} ${password}`)
+
+      if (email != null) {
+        dispatch({ type: 'CHECK_LOGIN' });
+        // alert("if")
+      } else {
+        dispatch({ type: 'FALSE_LOADING' });
+        // alert("else")
+      }
+    }, 1200);
   }, []);
+  
+  
 
-  if (loading) {
+  if (state.isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Loading ....</Text>
+        <LottieView source={require('./animation/19361-newsletter-prueba.json')}  autoPlay loop />
       </View>
     );
-  }
-
+  } 
+// {state.isSignedUser ? <MainTabScreen /> : <RootStackNavigator />}
   return (
     <AuthContext.Provider value={authContext}>
       <NavigationContainer>
-        <Drawer.Navigator initialRouteName="HomeDrawer">
-          <Drawer.Screen name="HomeDrawer" component={HomeScreen} />
-          <Drawer.Screen name="SupportScreen" component={comp} />
-          <Drawer.Screen name="Theme" component={Theme} />
-        </Drawer.Navigator>
+       {state.isSignedUser ? <MainTabScreen /> : <RootStackNavigator />}
       </NavigationContainer>
     </AuthContext.Provider>
   );
 }
+// 3487cc79ed744ebabcda12345796ea90
 
 export { AuthContext };
-
-const styles = StyleSheet.create({});
