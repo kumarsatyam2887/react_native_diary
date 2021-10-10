@@ -4,6 +4,7 @@ import React, {
   useMemo,
   useEffect,
   useState,
+  useCallback
 } from 'react';
 import {
   Text,
@@ -13,6 +14,7 @@ import {
   AsyncStorage,
   Alert,
   ActivityIndicator,
+  PermissionsAndroid
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import RootStackNavigator from './components/1RootStack';
